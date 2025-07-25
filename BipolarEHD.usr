@@ -1,0 +1,231 @@
+!----------------------------------------------------------------------------------
+!-----------------------------------TODO ------------------------------------------
+!----------------------------------------------------------------------------------
+
+
+!----------------------------------------------------------------------------------
+!-----------------------------------DOCUMENTATION ---------------------------------
+!----------------------------------------------------------------------------------
+
+! lx1 - Polynomial Order of (lx1-1)
+! ly1 - Polynomial Order of (ly1-1)
+! lz1 - Polynomial Order of (lz1-1)
+! nelt = nelv - Number of mesh elements (Mx-1)*(My-1)
+! Mx, My - Mesh along X and Y axis
+! lelv = lelt - Defined from SIZE file. (Same as lelt=lelg/lpmin + 3). is the upper bound on number of elements, per processor
+! Size(vx) - lx1*ly1*lz1*lelv
+! ldimt - Maximum Scalars, from SIZE file.
+! Size(t(:,:,:,:,X)) - lx1*ly1*lz1*lelt*1
+! Size(t(:,:,:,:,:)) - lx1*ly1*lz1*lelt*ldimt
+! nx1, ny1, nz1- Denotes the Polynomial order (~ lx1, ly1, lz1)
+
+
+! Fortran data is stored in column major order
+
+!----------------------------------------------------------------------------------
+!-----------------------------------gradm1 ----------------------------------------
+!----------------------------------------------------------------------------------
+
+! 0. Use "grep -rnw $pwd -e '<TextToSearch>'" to search in all text files under '$pwd' (physical working directory) for certain keywords
+! 1. Say for example, to calculate the gradient of 'ywd' as 'call gradm1 (dfdx_omegb,dfdy_omegb,dfdz_omegb,   ywd)'
+! 2. Size of the inputs and outputs are: 'ywd (lx1,ly1,lz1,lelt)', 'dfdx_omegb  (lx1,ly1,lz1,lelv)', 'dfdy_omegb  (lx1,ly1,lz1,lelv)', 'dfdz_omegb  (lx1,ly1,lz1,lelv)'
+
+!----------------------------------------------------------------------------------
+!-----------------------------------USERVP ----------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine uservp(ix,iy,iz,eg) ! Set variable properties
+	! implicit none
+	
+	include 'SIZE'
+	include 'TOTAL'
+	include 'NEKUSE'
+	return
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------USERF -----------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine userf(ix,iy,iz,eg) ! Set acceleration term
+	integer ix,iy,iz,eg
+	include 'SIZE'
+	include 'TOTAL'
+	include 'NEKUSE'
+	!--------------------------------------------------------------
+	!------------------------Declaration --------------------------
+	!--------------------------------------------------------------
+	common /ElectricFld/ Ex (lx1,ly1,lz1,lelv),Ey (lx1,ly1,lz1,lelv)
+	common /ElectricFld/ Ez(lx1,ly1,lz1,lelv)
+	ie = gllel(eg) ! To be present after all declarations
+	!--------------------------------------------------------------
+	!------------------------Force --------------------------------
+	!--------------------------------------------------------------
+	ffx = t(ix,iy,iz,ie,3)*Ex(ix,iy,iz,ie)/cpfld(1,2)
+	ffy = t(ix,iy,iz,ie,3)*Ey(ix,iy,iz,ie)/cpfld(1,2)
+	ffz = t(ix,iy,iz,ie,3)*Ez(ix,iy,iz,ie)/cpfld(1,2)
+	!--------------------------------------------------------------
+	!------------------------Debugging ----------------------------
+	!--------------------------------------------------------------
+	return
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------USERQ -----------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine userq(ix,iy,iz,eg) ! Sets Source Terms
+	integer ix,iy,iz,eg
+	include 'SIZE'
+	include 'TOTAL'
+	include 'NEKUSE' 
+	!--------------------------------------------------------------
+	!------------------------Declaration --------------------------
+	!--------------------------------------------------------------
+	common /SrcFld/ srcFld3(lx1,ly1,lz1,lelv)
+	ie = gllel(eg) ! To be present after all declarations
+	!--------------------------------------------------------------
+	!------------------------ Sorce Terms -------------------------
+	!--------------------------------------------------------------
+	if (ifield .eq. 3) then
+		avol = srcFld3(ix,iy,iz,ie)/(8.8541878188e-12*uparam(2)) ! Poission source term
+	endif
+	!--------------------------------------------------------------
+	!------------------------Debugging ----------------------------
+	!--------------------------------------------------------------
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------USERBC ----------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine userbc(ix,iy,iz,iside,eg) ! Set Boundary Conditions
+	! implicit none
+	integer ix,iy,iz,iside,eg
+	include 'SIZE'
+	include 'TOTAL'
+	include 'NEKUSE'
+	common /domainSize/ ymax, ymin
+	ie = gllel(eg)
+	if (ifield .eq. 3) then
+		if (abs(y-ymax).le. 1e-4 .or. abs(y-ymin) .le. 1e-4) then
+			temp = 0.0
+		else
+			temp = uparam(3)
+		endif
+	elseif (ifield .eq. 4 .or. ifield .eq. 5) then
+		temp = 0.0
+	endif
+	return
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------USERIC ----------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine useric(ix,iy,iz,eg) ! Set Initial Conditions
+	integer ix,iy,iz,eg
+	include 'SIZE'
+	include 'TOTAL'
+	include 'NEKUSE'
+	
+	ie = gllel(eg)
+	ux = 0.0; uy = 0.0; uz = 0.0; temp = 0.0
+	! if (ifield .eq. 2) temp = 0.0 ! No temperature equation
+	! if (ifield .eq. 3) temp = uparam(3)*0.0 ! Initial Potential Difference
+	! if (ifield .eq. 4) temp = 0.0 ! Initial Charge Density
+	! if (ifield .eq. 5) temp = uparam(5) ! ionMobility
+	! if (ifield .eq. 6) temp = uparam(6) ! ionConductivity
+
+	!********** Either of the (above or below) code snippet works *********************************
+
+	! Remodifying the above codes with t(:,:,:,:X) so as to control the parameters
+	t(ix,iy,iz,ie,1) = 0.0 ! No temperature equation
+	t(ix,iy,iz,ie,2) = 0.0 ! Initial Potential Difference
+	t(ix,iy,iz,ie,3) = 0.0 ! Initial Np
+	t(ix,iy,iz,ie,4) = 0.0 ! Initial Nn
+	t(ix,iy,iz,ie,5) = uparam(5) ! ionMobility
+
+	!**********************************************************************************************	
+	return
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------USERCHK ---------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine userchk() ! Set solvers parameters here
+	include 'SIZE'
+	include 'TOTAL'
+	include 'NEKUSE' 
+	!--------------------------------------------------------------
+	!------------------------Declaration --------------------------
+	!--------------------------------------------------------------
+	common /PhyConst/ e0, Boltzmann, eps0, n0
+	common /SrcFld/ srcFld3 (lx1,ly1,lz1,lelv)
+	common /domainSize/ ymax, ymin
+	if (istep.eq.0) then 
+		e0 = 1.60217663e-19 ! Elementary charge value
+		Boltzmann = 1.380649e-23 ! Boltzmann constamt
+		eps0 = 8.8541878188e-12 ! Vacuum permittivity
+		n0 = uparam(6)/(2*uparam(5)*e0) ! Neutral concentration of species
+		call domain_size(xmin,xmax,ymin,ymax,zmin,zmax) ! To determine the domain size for boundary conditions
+	endif
+	!--------------------------------------------------------------
+	!------------------------Solving ------------------------------
+	!--------------------------------------------------------------
+	srcFld3 = -e0*(t(:,:,:,:,3)-t(:,:,:,:,4)) ! Part of Poission Equation
+	
+	return
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------USERQTL ---------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine userqtl ! Set thermal divergence
+	call userqtl_scig 
+
+	return
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------USERDAT ---------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine usrdat()   ! This routine to modify element vertices
+
+	include 'SIZE'
+	include 'TOTAL'
+
+	return
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------USERDAT2 --------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine usrdat2()   ! This routine to modify mesh coordinates
+
+	include 'SIZE'
+	include 'TOTAL'
+
+	return
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------USERDAT3 --------------------------------------
+!----------------------------------------------------------------------------------
+	subroutine usrdat3() 
+	include 'SIZE'
+	include 'TOTAL'
+
+	return
+	end
+!----------------------------------------------------------------------------------
+!-----------------------------------Modified Bessel (I_1(x)) ----------------------
+!----------------------------------------------------------------------------------
+	subroutine modBessel(I, x) ! Modified Bessel function of first order and first kind
+	! call modBessel (I, x)
+	implicit none
+	double precision, intent(out) :: I
+	double precision, intent(in) :: x
+	double precision :: Z, Bk, sum, xh
+	integer :: k, U
+
+	U = 150
+	Bk = 1.0d0
+	sum = 1.0d0   ! Include B0 in sum
+	xh = x / 2.0d0
+
+	do k = 1, U
+		Z = (xh**2) / (dble(k) * dble(k + 1))
+		Bk = Z * Bk
+		sum = sum + Bk
+	end do
+	! Reference: https://www.mhtlab.uwaterloo.ca/courses/me755/web_chap4.pdf (Pg. 22)
+	I = xh * sum
+	return
+	end subroutine modBessel
