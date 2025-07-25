@@ -78,13 +78,37 @@
 	!------------------------Declaration --------------------------
 	!--------------------------------------------------------------
 	common /SrcFld/ srcFld3(lx1,ly1,lz1,lelv)
+	common /SrcFld/ srcFld4(lx1,ly1,lz1,lelv)
+	common /SrcFld/ srcFld5(lx1,ly1,lz1,lelv)
+	common /ElectricFld/ Ex (lx1,ly1,lz1,lelv),Ey (lx1,ly1,lz1,lelv)
+	common /ElectricFld/ Ez(lx1,ly1,lz1,lelv), magE(lx1,ly1,lz1,lelv)
+	common /PhyConst/ e0, Boltzmann, eps0, n0
+	real magE
 	ie = gllel(eg) ! To be present after all declarations
 	!--------------------------------------------------------------
-	!------------------------ Sorce Terms -------------------------
+	!------------------------ Onsager Function --------------------
+	!--------------------------------------------------------------
+	wE = e0**3*magE(ix,iy,iz,ie)
+	wE = (wE/(16*3.141*eps0*uparam(2)*Boltzmann**2*uparam(6)**2))**0.5
+	if (wE .eq. 0.0) then
+		FwE = 1.0 ! FwE(0) = 1.0- without Onsager enhancement
+	else
+		call modBessel(I,4*wE)
+		FwE = I/(2*wE)
+	endif
+	tmp = (e0*2*t(ix,iy,iz,ie,5)*n0**2/(eps0*uparam(2)))
+	tmp = tmp*(FwE-(t(ix,iy,iz,ie,3)*t(ix,iy,iz,ie,4))/n0**2) ! RHS of Np and Nn species Equation
+	!--------------------------------------------------------------
+	!------------------------ Source Terms ------------------------
 	!--------------------------------------------------------------
 	if (ifield .eq. 3) then
-		avol = srcFld3(ix,iy,iz,ie)/(8.8541878188e-12*uparam(2)) ! Poission source term
+		avol = srcFld3(ix,iy,iz,ie)/(eps0*uparam(2)) ! Poission source term
+	elseif (ifield .eq. 4) then
+		
+		avol = srcFld4(ix,iy,iz,ie)+tmp
+
 	endif
+
 	!--------------------------------------------------------------
 	!------------------------Debugging ----------------------------
 	!--------------------------------------------------------------
@@ -152,7 +176,14 @@
 	!--------------------------------------------------------------
 	common /PhyConst/ e0, Boltzmann, eps0, n0
 	common /SrcFld/ srcFld3 (lx1,ly1,lz1,lelv)
+	common /SrcFld/ srcFld4 (lx1,ly1,lz1,lelv)
+	common /SrcFld/ srcFld5 (lx1,ly1,lz1,lelv)
 	common /domainSize/ ymax, ymin
+	common /ElectricFld/ Ex (lx1,ly1,lz1,lelv),Ey (lx1,ly1,lz1,lelv),Ez (lx1,ly1,lz1,lelv)
+	common /ElectricFld/ magE(lx1,ly1,lz1,lelv)
+	real tmp(lx1,ly1,lz1,lelv),tmpX(lx1,ly1,lz1,lelv)
+	real tmpY(lx1,ly1,lz1,lelv),tmpZ(lx1,ly1,lz1,lelv)
+	real tmp2(lx1,ly1,lz1,lelv)
 	if (istep.eq.0) then 
 		e0 = 1.60217663e-19 ! Elementary charge value
 		Boltzmann = 1.380649e-23 ! Boltzmann constamt
@@ -164,7 +195,25 @@
 	!------------------------Solving ------------------------------
 	!--------------------------------------------------------------
 	srcFld3 = -e0*(t(:,:,:,:,3)-t(:,:,:,:,4)) ! Part of Poission Equation
+
+	call gradm1 (Ex, Ey, Ez, t(:,:,:,:,2))
+	Ex = -Ex; Ey = -Ey; Ez = -Ez ! Electric Field
+	magE = (Ex**2+Ey**2+Ez**2)**0.5
+
+	call gradm1 (tmpX,tmp,tmp,ux)
+	call gradm1 (tmp,tmpY,tmp,uy)
+	call gradm1 (tmp,tmp,tmpZ,uz)
+	srcFld4 = -t(:,:,:,:,3)*(tmpX+tmpY+tmpZ) ! OK
+	tmpX = t(:,:,:,:,5)*Ex*t(:,:,:,:,3)
+	tmpY = t(:,:,:,:,5)*Ey*t(:,:,:,:,3)
+	tmpZ = t(:,:,:,:,5)*Ez*t(:,:,:,:,3)
 	
+	call gradm1 (tmp2,tmp,tmp,tmpX)
+	srcFld4 = srcFld4 - tmp2
+	call gradm1 (tmp,tmp2,tmp,tmpY)
+	srcFld4 = srcFld4 - tmp2
+	call gradm1 (tmp,tmp,tmp2,tmpZ)
+	srcFld4 = srcFld4 - tmp2
 	return
 	end
 !----------------------------------------------------------------------------------
@@ -229,3 +278,6 @@
 	I = xh * sum
 	return
 	end subroutine modBessel
+!----------------------------------------------------------------------------------
+!-----------------------------------Magnitude of Electric Field -------------------
+!----------------------------------------------------------------------------------

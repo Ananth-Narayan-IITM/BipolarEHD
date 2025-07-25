@@ -26,20 +26,20 @@ residualTol = 1e-4
 solver = none
 
 [SCALAR01]  # Potential Difference ifield = 3, i = 1
-density     = 0.0 # Involves Transient evolution
+density     = 1.0 # Involves Transient evolution
 diffusivity =  1.0 # Fixed
 boundaryTypeMap = P  ,P  ,t ,t ,t
 residualTol = 1e-6
 
 [SCALAR02]  # Np ifield = 4, i = 2
 density     = 1.0 # Fixed
-diffusivity = 1.0 # close to 0.0
+diffusivity = uparam(1)
 boundaryTypeMap = P  ,P  ,SYM,SYM,t
 residualTol = 1e-6
 
 [SCALAR03]  # Nn ifield = 5, i = 3
 density     = 1.0 # Fixed
-diffusivity = 1.0 # close to 0.0
+diffusivity = uparam(1)
 boundaryTypeMap = P  ,P  ,t  ,t  ,SYM
 residualTol = 1e-6
 
