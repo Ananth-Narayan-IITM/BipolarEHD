@@ -1,13 +1,14 @@
-Ri = 1;
-Ro = 2.5;
-LxP = 20;
-LxN = 20;
-LyP = 7.5;
-LyN = 7.5;
 //Sets the mesh element order
 Mesh.ElementOrder = 2;
 //Sets the mesh version for exporting the mesh
-Mesh.MshFileVersion = 2.2;//+
+Mesh.MshFileVersion = 2.2;
+Ri = 0.5e-3;
+Ro = 1.25e-3;
+LxP = 2.5e-3;
+LxN = 2.5e-3;
+LyP = 2.5e-3;
+LyN = 2.5e-3;
+//+
 Point(1) = {0.707106781*Ri, 0.707106781*Ri, 0, 1.0};
 //+
 Point(2) = {0.707106781*Ri, -0.707106781*Ri, 0, 1.0};
@@ -162,15 +163,15 @@ Curve Loop(12) = {31, 32, -22, -21};
 //+
 Plane Surface(12) = {12};
 //+
-Transfinite Curve {24, 26, 27, 16, 22, 31, 30, 18} = 7 Using Progression 1;
+Transfinite Curve {24, 26, 27, 16, 22, 31, 30, 18} = 10 Using Progression 1;
 //+
-Transfinite Curve {13, 25, 32, 21, 19, 29, 28, 15} = 10 Using Progression 1;
+Transfinite Curve {13, 25, 32, 21, 19, 29, 28, 15} = 12 Using Progression 1;
 //+
-Transfinite Curve {23, 12, 5, 7, 10, 17} = 10 Using Progression 1;
+Transfinite Curve {23, 12, 5, 7, 10, 17} = 12 Using Progression 1;
 //+
-Transfinite Curve {14, 9, 8, 6, 11, 20} = 10 Using Progression 1;
+Transfinite Curve {14, 9, 8, 6, 11, 20} = 12 Using Progression 1;
 //+
-Transfinite Curve {33, 36, 35, 34} = 5 Using Progression 1;
+Transfinite Curve {33, 36, 35, 34} = 8 Using Progression 1;
 //+
 Transfinite Surface {9};
 //+
@@ -208,4 +209,4 @@ Physical Curve("bottom") = {21, 20, 19};
 //+
 Physical Curve("cylinder") = {8, 7, 6, 5};
 //+
-Physical Surface("fluid") = {9, 5, 12, 8, 3, 2, 4, 1, 7, 10, 6, 11};
+Physical Surface("fluid") = {4, 6, 5, 2, 9, 7, 10, 1, 3, 12, 8, 11};

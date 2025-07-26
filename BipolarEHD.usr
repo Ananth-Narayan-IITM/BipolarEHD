@@ -52,15 +52,19 @@
 	!--------------------------------------------------------------
 	!------------------------Declaration --------------------------
 	!--------------------------------------------------------------
+	common /PhyConst/ e0
 	common /ElectricFld/ Ex (lx1,ly1,lz1,lelv),Ey (lx1,ly1,lz1,lelv)
 	common /ElectricFld/ Ez(lx1,ly1,lz1,lelv)
 	ie = gllel(eg) ! To be present after all declarations
 	!--------------------------------------------------------------
 	!------------------------Force --------------------------------
 	!--------------------------------------------------------------
-	ffx = t(ix,iy,iz,ie,3)*Ex(ix,iy,iz,ie)/cpfld(1,2)
-	ffy = t(ix,iy,iz,ie,3)*Ey(ix,iy,iz,ie)/cpfld(1,2)
-	ffz = t(ix,iy,iz,ie,3)*Ez(ix,iy,iz,ie)/cpfld(1,2)
+	tmp = e0*(t(ix,iy,iz,ie,3)-t(ix,iy,iz,ie,4))/cpfld(1,2)
+	! ffx = tmp*Ex(ix,iy,iz,ie)
+	! ffy = tmp*Ey(ix,iy,iz,ie)
+	! ffz = tmp*Ez(ix,iy,iz,ie)
+	ffx = tmp*Ex(ix,iy,iz,ie); ffy = tmp*Ey(ix,iy,iz,ie)
+	ffz = tmp*Ez(ix,iy,iz,ie)
 	!--------------------------------------------------------------
 	!------------------------Debugging ----------------------------
 	!--------------------------------------------------------------
@@ -81,34 +85,36 @@
 	common /SrcFld/ srcFld4(lx1,ly1,lz1,lelv)
 	common /SrcFld/ srcFld5(lx1,ly1,lz1,lelv)
 	common /ElectricFld/ Ex (lx1,ly1,lz1,lelv),Ey (lx1,ly1,lz1,lelv)
-	common /ElectricFld/ Ez(lx1,ly1,lz1,lelv), magE(lx1,ly1,lz1,lelv)
-	common /PhyConst/ e0, Boltzmann, eps0, n0
-	real magE
+	common /ElectricFld/ Ez(lx1,ly1,lz1,lelv)
+	common /PhyConst/ e0, Boltzmann, eps0
+	common /ElectricFld/ magE(lx1,ly1,lz1,lelv)
+	real n0
 	ie = gllel(eg) ! To be present after all declarations
 	!--------------------------------------------------------------
 	!------------------------ Onsager Function --------------------
 	!--------------------------------------------------------------
 	wE = e0**3*magE(ix,iy,iz,ie)
 	wE = (wE/(16*3.141*eps0*uparam(2)*Boltzmann**2*uparam(6)**2))**0.5
-	if (wE .eq. 0.0) then
+	if (wE .lt. 1e-12) then
 		FwE = 1.0 ! FwE(0) = 1.0- without Onsager enhancement
 	else
-		call modBessel(I,4*wE)
-		FwE = I/(2*wE)
+		call modBessel(I,4.0*wE)
+		FwE = I/(2.0*wE)
 	endif
+	n0 = uparam(6)/(2.0*uparam(5)*e0) ! Neutral concentration of species
 	tmp = (e0*2*t(ix,iy,iz,ie,5)*n0**2/(eps0*uparam(2)))
 	tmp = tmp*(FwE-(t(ix,iy,iz,ie,3)*t(ix,iy,iz,ie,4))/n0**2) ! RHS of Np and Nn species Equation
 	!--------------------------------------------------------------
 	!------------------------ Source Terms ------------------------
 	!--------------------------------------------------------------
 	if (ifield .eq. 3) then
-		avol = srcFld3(ix,iy,iz,ie)/(eps0*uparam(2)) ! Poission source term
+		source = srcFld3(ix,iy,iz,ie)/(e0*uparam(2)) ! Poission source term
+		ux = 0.0; uy = 0.0; uz = 0.0
 	elseif (ifield .eq. 4) then
-		
-		avol = srcFld4(ix,iy,iz,ie)+tmp
-
+		source = srcFld4(ix,iy,iz,ie)+tmp
+	elseif (ifield .eq. 5) then
+		source = srcFld5(ix,iy,iz,ie)+tmp
 	endif
-
 	!--------------------------------------------------------------
 	!------------------------Debugging ----------------------------
 	!--------------------------------------------------------------
@@ -123,6 +129,7 @@
 	include 'TOTAL'
 	include 'NEKUSE'
 	common /domainSize/ ymax, ymin
+	common /PhyConst/ e0
 	ie = gllel(eg)
 	if (ifield .eq. 3) then
 		if (abs(y-ymax).le. 1e-4 .or. abs(y-ymin) .le. 1e-4) then
@@ -130,7 +137,9 @@
 		else
 			temp = uparam(3)
 		endif
-	elseif (ifield .eq. 4 .or. ifield .eq. 5) then
+	elseif (ifield .eq. 4) then
+		temp = 1.0/1.60217663e-19
+	elseif (ifield .eq. 5) then
 		temp = 0.0
 	endif
 	return
@@ -174,7 +183,7 @@
 	!--------------------------------------------------------------
 	!------------------------Declaration --------------------------
 	!--------------------------------------------------------------
-	common /PhyConst/ e0, Boltzmann, eps0, n0
+	common /PhyConst/ e0, Boltzmann, eps0
 	common /SrcFld/ srcFld3 (lx1,ly1,lz1,lelv)
 	common /SrcFld/ srcFld4 (lx1,ly1,lz1,lelv)
 	common /SrcFld/ srcFld5 (lx1,ly1,lz1,lelv)
@@ -188,25 +197,24 @@
 		e0 = 1.60217663e-19 ! Elementary charge value
 		Boltzmann = 1.380649e-23 ! Boltzmann constamt
 		eps0 = 8.8541878188e-12 ! Vacuum permittivity
-		n0 = uparam(6)/(2*uparam(5)*e0) ! Neutral concentration of species
 		call domain_size(xmin,xmax,ymin,ymax,zmin,zmax) ! To determine the domain size for boundary conditions
 	endif
 	!--------------------------------------------------------------
 	!------------------------Solving ------------------------------
 	!--------------------------------------------------------------
-	srcFld3 = -e0*(t(:,:,:,:,3)-t(:,:,:,:,4)) ! Part of Poission Equation
+	srcFld3 = e0*(ps(2)-ps(3)) ! Part of Poission Equation
 
-	call gradm1 (Ex, Ey, Ez, t(:,:,:,:,2))
+	call gradm1 (Ex, Ey, Ez, ps(1))
 	Ex = -Ex; Ey = -Ey; Ez = -Ez ! Electric Field
 	magE = (Ex**2+Ey**2+Ez**2)**0.5
 
 	call gradm1 (tmpX,tmp,tmp,ux)
 	call gradm1 (tmp,tmpY,tmp,uy)
 	call gradm1 (tmp,tmp,tmpZ,uz)
-	srcFld4 = -t(:,:,:,:,3)*(tmpX+tmpY+tmpZ) ! OK
-	tmpX = t(:,:,:,:,5)*Ex*t(:,:,:,:,3)
-	tmpY = t(:,:,:,:,5)*Ey*t(:,:,:,:,3)
-	tmpZ = t(:,:,:,:,5)*Ez*t(:,:,:,:,3)
+	srcFld4 = -ps(2)*(tmpX+tmpY+tmpZ) ! OK
+	tmpX = ps(4)*Ex*ps(2)
+	tmpY = ps(4)*Ey*ps(2)
+	tmpZ = ps(4)*Ez*ps(2)
 	
 	call gradm1 (tmp2,tmp,tmp,tmpX)
 	srcFld4 = srcFld4 - tmp2
@@ -214,6 +222,21 @@
 	srcFld4 = srcFld4 - tmp2
 	call gradm1 (tmp,tmp,tmp2,tmpZ)
 	srcFld4 = srcFld4 - tmp2
+
+	call gradm1 (tmpX,tmp,tmp,ux)
+	call gradm1 (tmp,tmpY,tmp,uy)
+	call gradm1 (tmp,tmp,tmpZ,uz)
+	srcFld5 = -ps(3)*(tmpX+tmpY+tmpZ) ! OK
+	tmpX = ps(4)*Ex*ps(3)
+	tmpY = ps(4)*Ey*ps(3)
+	tmpZ = ps(4)*Ez*ps(3)
+	
+	call gradm1 (tmp2,tmp,tmp,tmpX)
+	srcFld5 = srcFld5 + tmp2
+	call gradm1 (tmp,tmp2,tmp,tmpY)
+	srcFld5 = srcFld5 + tmp2
+	call gradm1 (tmp,tmp,tmp2,tmpZ)
+	srcFld5 = srcFld5 + tmp2
 	return
 	end
 !----------------------------------------------------------------------------------
@@ -278,6 +301,3 @@
 	I = xh * sum
 	return
 	end subroutine modBessel
-!----------------------------------------------------------------------------------
-!-----------------------------------Magnitude of Electric Field -------------------
-!----------------------------------------------------------------------------------

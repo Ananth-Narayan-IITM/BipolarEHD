@@ -1,20 +1,24 @@
 [GENERAL]
-dt = 1e-3
-numsteps = 1
-writeInterval = 10
+dt = 1e-11
+numsteps = 10000
+writeInterval = 100
+timeStepper = bdf2
+extrapolation = OIFS
+variableDt = yes
+targetCFL = 0.15
+#startFrom = BipolarEHD0.fld time=1
 #----------------------------------------------------------------------------------
-#----------------------------------- User Parameters ----------------------------------------
+#----------------------------------- User Parameters ------------------------------
 #----------------------------------------------------------------------------------
 userParam01 = 1e-8 # ionDiffusivity
-userParam02 = 1.0 # Relative Permittivity
-userParam03 = 74.3924 # Potential Difference (Boundary Conditions)
-userParam04 = 6.5867e-11 # Charge Density (Boundary Conditions)
-userParam05 = 5.3769e-07 # ionMobility
+userParam02 = 3.8 # Relative Permittivity
+userParam03 = 30.0 # Potential Difference (Boundary Conditions)
+userParam05 = 5e-9 # ionMobility
 userParam06 = 273.0 # Temperature
 
 [VELOCITY] # ifield = 1, i = 0
 density = 1.225
-viscosity = 1.225e-5
+viscosity = 1e-5
 # Order: inlet, outlet, top, bottom, cylinder
 boundaryTypeMap = P  ,P  ,W  ,W  ,W
 residualTol = 1e-6
@@ -29,17 +33,17 @@ solver = none
 density     = 1.0 # Involves Transient evolution
 diffusivity =  1.0 # Fixed
 boundaryTypeMap = P  ,P  ,t ,t ,t
-residualTol = 1e-6
+residualTol = 1e-4
 
 [SCALAR02]  # Np ifield = 4, i = 2
 density     = 1.0 # Fixed
-diffusivity = uparam(1)
+diffusivity = 1.0
 boundaryTypeMap = P  ,P  ,SYM,SYM,t
 residualTol = 1e-6
 
 [SCALAR03]  # Nn ifield = 5, i = 3
 density     = 1.0 # Fixed
-diffusivity = uparam(1)
+diffusivity = 1.0
 boundaryTypeMap = P  ,P  ,t  ,t  ,SYM
 residualTol = 1e-6
 
